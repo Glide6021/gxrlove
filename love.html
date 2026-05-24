@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>💌 给你的专属浪漫</title>
+    <style>
+        /* --- 全局样式 --- */
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            /* 升级为深邃的渐变星空背景 */
+            background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+            height: 100vh;
+            font-family: "Microsoft YaHei", "PingFang SC", cursive, sans-serif;
+            color: #fff;
+            user-select: none;
+        }
+
+        /* 星空画布 */
+        #starfield {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* 粒子爱心画布 */
+        #heartCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        /* --- 开场遮罩层 --- */
+        #start-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            cursor: pointer;
+            transition: opacity 1s ease;
+        }
+        #start-text {
+            font-size: 24px;
+            color: #ffb7c5;
+            text-shadow: 0 0 10px #ff69b4;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.1); opacity: 1; }
+        }
+
+        /* --- 表白弹窗 --- */
+        #proposal-modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 30px 40px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 105, 180, 0.3);
+            text-align: center;
+            z-index: 50;
+            display: none;
+            box-shadow: 0 0 30px rgba(255, 105, 180, 0.2);
+            width: 80%;
+            max-width: 400px;
+        }
+        #proposal-title {
+            font-size: 26px;
+            margin-bottom: 30px;
+            color: #ffb7c5;
+            text-shadow: 0 0 10px #ff1493;
+        }
+        .btn-container {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            position: relative;
+            height: 50px;
+        }
+        .btn {
+            padding: 10px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+        #yes-btn {
+            background: linear-gradient(45deg, #ff6b8b, #ff8e9e);
+            color: white;
+            box-shadow: 0 0 15px rgba(255, 107, 139, 0.5);
+        }
+        #yes-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 25px rgba(255, 107, 139, 0.8);
+        }
+        #no-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+            position: absolute;
+            right: 20px;
+        }
+
+        /* --- 成功后的文字 --- */
+        #success-text {
+            position: absolute;
+            bottom: 15%;
+            width: 100%;
+            text-align: center;
+            font-size: 28px;
+            color: #ffb7c5;
+            text-shadow: 0 0 10px #ff69b4, 0 0 20px #ff1493;
+            z-index: 10;
+            display: none;
+            animation: textGlow 3s ease-in-out infinite;
+        }
+        @keyframes textGlow {
+            0%, 100% { opacity: 0.7; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.05); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- 背景音乐 -->
+    <audio id="bg-music" loop>
+        <source src="2026.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- 开场遮罩 -->
+    <div id="start-overlay">
+        <div id="start-text">✨ 点击屏幕开启浪漫 ✨</div>
+    </div>
+
+    <!-- 画布层 -->
+    <canvas id="starfield"></canvas>
+    <canvas id="heartCanvas"></canvas>
+
+    <!-- 表白弹窗 -->
+    <div id="proposal-modal">
+        <div id="proposal-title">做我女朋友好不好？🥺</div>
+        <div class="btn-container">
+            <button id="yes-btn" class="btn">好呀 ❤️</button>
+            <button id="no-btn" class="btn">不要</button>
+        </div>
+    </div>
+
+    <!-- 成功后的文字 -->
+    <div id="success-text">I Love You Forever 💖</div>
+
+    <script>
+        // --- 1. 音乐与开场逻辑 ---
+        const startOverlay = document.getElementById('start-overlay');
+        const bgMusic = document.getElementById('bg-music');
+        const proposalModal = document.getElementById('proposal-modal');
+        const successText = document.getElementById('success-text');
+        const yesBtn = document.getElementById('yes-btn');
+        const noBtn = document.getElementById('no-btn');
+
+        startOverlay.addEventListener('click', () => {
+            startOverlay.style.opacity = '0';
+            setTimeout(() => {
+                startOverlay.style.display = 'none';
+                bgMusic.play().catch(e => console.log("音乐播放需用户交互"));
+                proposalModal.style.display = 'block';
+            }, 1000);
+        });
+
+        // --- 2. “不要”按钮满屏乱跑逻辑 ---
+        function moveButton() {
+            const maxWidth = window.innerWidth - noBtn.offsetWidth;
+            const maxHeight = window.innerHeight - noBtn.offsetHeight;
+            const randomX = Math.random() * maxWidth;
+            const randomY = Math.random() * maxHeight;
+            noBtn.style.position = 'fixed';
+            noBtn.style.left = randomX + 'px';
+            noBtn.style.top = randomY + 'px';
+        }
+        noBtn.addEventListener('mouseover', moveButton);
+        noBtn.addEventListener('click', moveButton);
+        noBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            moveButton();
+        });
+
+        // --- 3. “好呀”按钮逻辑 ---
+        yesBtn.addEventListener('click', () => {
+            proposalModal.style.display = 'none';
+            successText.style.display = 'block';
+            heartColorHue = 340; 
+        });
+
+        // --- 4. 升级版星空背景逻辑 (带闪烁和浮动) ---
+        const starCanvas = document.getElementById('starfield');
+        const starCtx = starCanvas.getContext('2d');
+        let width, height;
+        let stars = [];
+
+        function initStars() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            starCanvas.width = width;
+            starCanvas.height = height;
+            stars = [];
+            for (let i = 0; i < 150; i++) {
+                stars.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    radius: Math.random() * 1.5,
+                    vx: (Math.random() - 0.5) * 0.2,
+                    vy: (Math.random() - 0.5) * 0.2,
+                    alpha: Math.random(),
+                    flashSpeed: 0.01 + Math.random() * 0.03,
+                    flashDir: 1
+                });
+            }
+        }
+
+        function drawStars() {
+            starCtx.clearRect(0, 0, width, height);
+            stars.forEach(star => {
+                // 闪烁效果
+                star.alpha += star.flashSpeed * star.flashDir;
+                if (star.alpha >= 1 || star.alpha <= 0.2) star.flashDir *= -1;
+
+                starCtx.globalAlpha = star.alpha;
+                starCtx.fillStyle = '#fff';
+                starCtx.beginPath();
+                starCtx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+                starCtx.fill();
+                
+                // 缓慢浮动
+                star.x += star.vx;
+                star.y += star.vy;
+                if (star.x < 0) star.x = width;
+                if (star.x > width) star.x = 0;
+                if (star.y < 0) star.y = height;
+                if (star.y > height) star.y = 0;
+            });
+            requestAnimationFrame(drawStars);
+        }
+
+        initStars();
+        drawStars();
+        window.addEventListener('resize', initStars);
+
+        // --- 5. 终极版动态粒子爱心逻辑 (汇聚与跳动) ---
+        const heartCanvas = document.getElementById('heartCanvas');
+        const heartCtx = heartCanvas.getContext('2d');
+        let heartWidth, heartHeight;
+        let particles = [];
+        let heartColorHue = 330;
+
+        function initHeart() {
+            heartWidth = window.innerWidth;
+            heartHeight = window.innerHeight;
+            heartCanvas.width = heartWidth;
+            heartCanvas.height = heartHeight;
+            particles = [];
+            // 增加粒子数量，让爱心更饱满
+            const particleCount = 1500;
+            for (let i = 0; i < particleCount; i++) {
+                particles.push(createParticle());
+            }
+        }
+
+        function createParticle() {
+            const t = Math.random() * Math.PI * 2;
+            // 心形公式
+            const hx = 16 * Math.pow(Math.sin(t), 3);
+            const hy = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+            
+            // 目标位置（放大并居中）
+            const targetX = hx * 12 + heartWidth / 2;
+            const targetY = hy * 12 + heartHeight / 2;
+
+            // 初始位置：从屏幕随机位置出发，制造汇聚感
+            const startX = Math.random() * heartWidth;
+            const startY = Math.random() * heartHeight;
+
+            return {
+                x: startX,
+                y: startY,
+                targetX: targetX,
+                targetY: targetY,
+                originHx: hx, // 保存原始心形坐标用于计算心跳
+                originHy: hy,
+                size: Math.random() * 2 + 0.5,
+                speed: 0.02 + Math.random() * 0.03, // 汇聚速度
+                jitter: Math.random() * 0.5 // 到达后的微小抖动
+            };
+        }
+
+        let time = 0;
+        function drawHeart() {
+            // 制造拖影，让粒子运动更丝滑
+            heartCtx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            heartCtx.fillRect(0, 0, heartWidth, heartHeight);
+
+            time += 0.03;
+            // 心跳节奏：模拟真实心脏的收缩与舒张
+            const beat = 1 + 0.15 * Math.pow(Math.sin(time * 2), 3); 
+
+            particles.forEach(p => {
+                // 计算带心跳的目标位置
+                const finalTargetX = p.originHx * 12 * beat + heartWidth / 2;
+                const finalTargetY = p.originHy * 12 * beat + heartHeight / 2;
+
+                // 粒子向目标位置平滑移动 (缓动效果)
+                p.x += (finalTargetX - p.x) * p.speed;
+                p.y += (finalTargetY - p.y) * p.speed;
+
+                // 到达后添加一点随机抖动，让爱心看起来在“发光颤抖”
+                const jitterX = (Math.random() - 0.5) * p.jitter;
+                const jitterY = (Math.random() - 0.5) * p.jitter;
+
+                heartCtx.beginPath();
+                heartCtx.arc(p.x + jitterX, p.y + jitterY, p.size, 0, Math.PI * 2);
+                heartCtx.fillStyle = `hsla(${heartColorHue}, 100%, 70%, 0.9)`;
+                heartCtx.fill();
+            });
+
+            requestAnimationFrame(drawHeart);
+        }
+
+        initHeart();
+        drawHeart();
+        window.addEventListener('resize', initHeart);
+
+    </script>
+</body>
+</html>
